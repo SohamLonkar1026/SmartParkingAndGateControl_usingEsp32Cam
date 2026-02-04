@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Parking - QR Scanner</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+      header { padding: 16px 24px; background: #111827; border-bottom: 1px solid #1f2937; }
+      main { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 24px; max-width: 900px; margin: 0 auto; }
+      .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; }
+      .video-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #000; min-height: 400px; }
+      video, #mjpegImg { width: 100%; display: block; background: #000; }
+      canvas { position: absolute; top: 0; left: 0; opacity: 0.3; pointer-events: none; display: none; object-fit: contain; }
+      canvas.debug { display: block; }
+      .popup { 
+        position: absolute; 
+        padding: 20px 30px; 
+        border-radius: 12px; 
+        font-size: 28px; 
+        font-weight: bold;
+        animation: slideIn 0.3s ease-out, pulse 1s infinite;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        z-index: 1000;
+      }
+      @keyframes slideIn {
+        from { transform: translateY(-20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      .status { margin-top: 8px; color: #93c5fd; font-size: 14px; }
+      .result { white-space: pre-wrap; background: #0b1220; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+      button { background: #2563eb; color: white; border: 0; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+      button.secondary { background: #374151; }
+      a { color: #93c5fd; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h2>Smart Parking System</h2>
+        <div>
+          <label for="navSelect" style="margin-right:6px; color:#93c5fd;">Navigate:</label>
+          <select id="navSelect" style="background:#0b1220; color:#e2e8f0; border:1px solid #1f2937; padding:6px 10px; border-radius:8px;">
+            <option value="/dashboard.html">📊 Dashboard</option>
+            <option value="/" selected>Scanner Only</option>
+            <option value="/vehicles.html">Registered Vehicles</option>
+            <option value="/logs.html">Entry/Exit Logs</option>
+            <option value="/pricing.html">Pricing Only</option>
+          </select>
+        </div>
+      </div>
+    </header>
+    <main>
+      <section class="panel">
+        <h3>Scanner <span id="sourceIndicator" style="font-size:14px; color:#93c5fd;"></span></h3>
+        <div class="video-wrap">
+          <video id="video" playsinline></video>
+          <img id="mjpegImg" style="display:none;" />
+          <canvas id="canvas"></canvas>
+          
+          <!-- Entry Popup: Shows parking slot assignment -->
+          <div id="slotPopup" class="popup" style="display: none; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: 3px solid #60a5fa;">
+            <div style="text-align: center;">
+              🅿️ <span id="slotText">PARKING SLOT ASSIGNED</span>
+            </div>
+          </div>
+          
+          <!-- Exit Popup: Shows vehicle exit -->
+          <div id="exitPopup" class="popup" style="display: none; bottom: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; border: 3px solid #f87171;">
+            <div style="text-align: center;">
+              🚗 <span id="exitText">VEHICLE EXITED</span>
+            </div>
+          </div>
+          
+          <!-- Scan Indicator -->
+          <div id="scanIndicator" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(34, 197, 94, 0.9); color: white; padding: 15px 25px; border-radius: 8px; font-size: 18px; font-weight: bold;">
+            ✓ QR CODE DETECTED
+          </div>
+        </div>
+        <div id="esp32UrlSection" style="display:none; margin-top:12px;">
+          <label style="display:block; margin-bottom:6px; color:#93c5fd; font-size:14px;">ESP32-CAM Stream URL:</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="esp32Url" value="http://10.153.205.93:81/" 
+                   style="flex:1; padding:8px 12px; background:#0b1220; border:1px solid #1f2937; border-radius:6px; color:#e2e8f0; font-size:14px;"/>
+            <button class="secondary" id="testUrl" style="padding:8px 16px; white-space:nowrap;">🔍 Test</button>
+          </div>
+          <small id="urlStatus" style="color:#6b7280; display:block; margin-top:4px;">Enter ESP32-CAM URL and click Test</small>
+        </div>
+        <div class="status" id="status">Initializing camera...</div>
+        <div class="btns">
+          <button id="startBtn">Start Camera</button>
+          <button class="secondary" id="stopBtn">Stop Camera</button>
+          <button class="secondary" id="toggleSource">Switch to ESP32-CAM</button>
+          <button class="secondary" id="debugCanvas" title="Show what the scanner sees">🔍 Debug View</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h3>Last Scan</h3>
+        <div id="lastScan" class="result">No scans yet.</div>
+      </section>
+
+      <section class="panel">
+        <small>Tip: Use a QR code that encodes the vehicle id (e.g., <code>ABC123</code>). This demo runs locally. Ensure you grant camera permission. Powered by <a href="https://github.com/cozmo/jsQR" target="_blank" rel="noreferrer noopener">jsQR</a>.</small>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="/script.js"></script>
+    <script>
+      const navSelect = document.getElementById('navSelect');
+      navSelect.addEventListener('change', () => {
+        window.location.href = navSelect.value;
+      });
+    </script>
+  </body>
+  </html>
+
+

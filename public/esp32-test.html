@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESP32-CAM Connection Test</title>
+    <style>
+      body { 
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
+        margin: 0; 
+        background: #0f172a; 
+        color: #e2e8f0; 
+        padding: 24px;
+      }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 { color: #93c5fd; }
+      .test-section { 
+        background: #111827; 
+        border: 1px solid #1f2937; 
+        border-radius: 12px; 
+        padding: 20px; 
+        margin: 20px 0;
+      }
+      input { 
+        width: 100%; 
+        padding: 10px; 
+        background: #0b1220; 
+        border: 1px solid #1f2937; 
+        border-radius: 6px; 
+        color: #e2e8f0; 
+        font-size: 14px;
+        margin: 10px 0;
+      }
+      button { 
+        background: #2563eb; 
+        color: white; 
+        border: 0; 
+        padding: 10px 20px; 
+        border-radius: 8px; 
+        cursor: pointer; 
+        margin: 5px;
+      }
+      button:hover { background: #1d4ed8; }
+      .video-container { 
+        position: relative; 
+        background: #000; 
+        border-radius: 8px; 
+        overflow: hidden;
+        margin: 10px 0;
+      }
+      video, img { 
+        width: 100%; 
+        max-width: 640px; 
+        display: block; 
+      }
+      .status { 
+        padding: 10px; 
+        border-radius: 6px; 
+        margin: 10px 0;
+        font-family: monospace;
+      }
+      .success { background: #065f46; color: #6ee7b7; }
+      .error { background: #7f1d1d; color: #fca5a5; }
+      .info { background: #1e3a8a; color: #93c5fd; }
+      .endpoint-list { 
+        background: #0b1220; 
+        padding: 15px; 
+        border-radius: 6px; 
+        margin: 10px 0;
+      }
+      .endpoint-item { 
+        padding: 8px; 
+        margin: 5px 0; 
+        cursor: pointer; 
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .endpoint-item:hover { background: #1f2937; }
+      .test-btn { 
+        background: #374151; 
+        padding: 5px 12px; 
+        font-size: 12px;
+      }
+      code { 
+        background: #1f2937; 
+        padding: 2px 6px; 
+        border-radius: 4px; 
+        color: #93c5fd;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔧 ESP32-CAM Connection Tester</h1>
+      
+      <div class="test-section">
+        <h2>Step 1: Enter ESP32-CAM IP</h2>
+        <input type="text" id="esp32Ip" value="10.153.205.93:81" placeholder="IP:PORT (e.g., 192.168.1.100:81)" />
+        <button onclick="testEndpoints()">🔍 Test All Common Endpoints</button>
+      </div>
+
+      <div class="test-section">
+        <h2>Step 2: Test Results</h2>
+        <div id="testResults"></div>
+      </div>
+
+      <div class="test-section">
+        <h2>Step 3: Common ESP32-CAM Stream Endpoints</h2>
+        <p>Click "Test" to check each endpoint:</p>
+        <div class="endpoint-list" id="endpointList"></div>
+      </div>
+
+      <div class="test-section">
+        <h2>Step 4: Manual Stream Test</h2>
+        <input type="text" id="manualUrl" placeholder="Enter full URL (e.g., http://10.102.251.93:81/stream)" />
+        <button onclick="testManualUrl()">Test This URL</button>
+        <div id="manualResult"></div>
+        <div class="video-container">
+          <img id="testImg" style="display:none;" />
+        </div>
+      </div>
+
+      <div class="test-section">
+        <h2>Step 5: Direct Browser Test</h2>
+        <p>Open these URLs directly in a new browser tab:</p>
+        <div id="directLinks"></div>
+      </div>
+    </div>
+
+    <script>
+      const commonEndpoints = [
+        '/stream',
+        '/',
+        '/video',
+        '/mjpeg',
+        '/mjpeg/1',
+        '/cam',
+        '/camera',
+        '/video_feed',
+        ':81/stream',
+        ':81/',
+        ':81/video'
+      ];
+
+      function getBaseUrl() {
+        const ip = document.getElementById('esp32Ip').value.trim();
+        if (!ip) return null;
+        return ip.startsWith('http') ? ip : `http://${ip}`;
+      }
+
+      function updateEndpointList() {
+        const baseUrl = getBaseUrl();
+        if (!baseUrl) return;
+
+        const listDiv = document.getElementById('endpointList');
+        const linksDiv = document.getElementById('directLinks');
+        
+        listDiv.innerHTML = '';
+        linksDiv.innerHTML = '';
+
+        commonEndpoints.forEach(endpoint => {
+          let url = baseUrl;
+          if (endpoint.startsWith(':')) {
+            url = url.replace(/:\d+/, '') + endpoint;
+          } else {
+            url = baseUrl + endpoint;
+          }
+
+          // Add to test list
+          const item = document.createElement('div');
+          item.className = 'endpoint-item';
+          item.innerHTML = `
+            <code>${url}</code>
+            <button class="test-btn" onclick="testUrl('${url}', this)">Test</button>
+          `;
+          listDiv.appendChild(item);
+
+          // Add direct link
+          const link = document.createElement('div');
+          link.innerHTML = `📺 <a href="${url}" target="_blank" style="color:#93c5fd;">${url}</a>`;
+          link.style.padding = '5px 0';
+          linksDiv.appendChild(link);
+        });
+      }
+
+      function testUrl(url, button) {
+        const img = new Image();
+        const originalText = button.textContent;
+        button.textContent = '⏳ Testing...';
+        button.disabled = true;
+
+        const timeout = setTimeout(() => {
+          button.textContent = '❌ Timeout';
+          button.style.background = '#7f1d1d';
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.disabled = false;
+            button.style.background = '';
+          }, 2000);
+        }, 5000);
+
+        img.onload = () => {
+          clearTimeout(timeout);
+          button.textContent = '✅ Works!';
+          button.style.background = '#065f46';
+          showResult(`SUCCESS: ${url} is accessible!`, 'success');
+          document.getElementById('testImg').src = url;
+          document.getElementById('testImg').style.display = 'block';
+        };
+
+        img.onerror = () => {
+          clearTimeout(timeout);
+          button.textContent = '❌ Failed';
+          button.style.background = '#7f1d1d';
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.disabled = false;
+            button.style.background = '';
+          }, 2000);
+        };
+
+        img.src = url;
+      }
+
+      function testManualUrl() {
+        const url = document.getElementById('manualUrl').value.trim();
+        if (!url) {
+          showResult('Please enter a URL', 'error', 'manualResult');
+          return;
+        }
+
+        showResult(`Testing: ${url}...`, 'info', 'manualResult');
+        
+        const img = document.getElementById('testImg');
+        img.style.display = 'none';
+        
+        const testImg = new Image();
+        
+        const timeout = setTimeout(() => {
+          showResult(`TIMEOUT: Could not connect to ${url}`, 'error', 'manualResult');
+        }, 8000);
+
+        testImg.onload = () => {
+          clearTimeout(timeout);
+          showResult(`SUCCESS! Stream is working at: ${url}`, 'success', 'manualResult');
+          img.src = url;
+          img.style.display = 'block';
+        };
+
+        testImg.onerror = (e) => {
+          clearTimeout(timeout);
+          showResult(`FAILED: Cannot load stream from ${url}. Check console for details.`, 'error', 'manualResult');
+          console.error('Image load error:', e);
+        };
+
+        testImg.src = url;
+      }
+
+      function testEndpoints() {
+        const baseUrl = getBaseUrl();
+        if (!baseUrl) {
+          showResult('Please enter ESP32-CAM IP address', 'error', 'testResults');
+          return;
+        }
+
+        updateEndpointList();
+        showResult(`Testing endpoints for ${baseUrl}... Click "Test" buttons above.`, 'info', 'testResults');
+      }
+
+      function showResult(message, type, targetId = 'testResults') {
+        const div = document.getElementById(targetId);
+        div.innerHTML = `<div class="status ${type}">${message}</div>`;
+      }
+
+      // Initialize
+      window.addEventListener('load', () => {
+        updateEndpointList();
+        showResult('Enter your ESP32-CAM IP and click "Test All Common Endpoints"', 'info', 'testResults');
+      });
+    </script>
+  </body>
+</html>

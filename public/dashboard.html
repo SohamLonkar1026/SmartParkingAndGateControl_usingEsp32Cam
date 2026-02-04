@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Parking Dashboard</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      background: #0a1628;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 12px 20px;
+      background: #1a2332;
+      border-bottom: 1px solid #2d3748;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: calc(100vh - 60px);
+      gap: 1px;
+      background: #000;
+    }
+
+    .panel {
+      background: #1a2332;
+      padding: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: #0f1a2a;
+      border-bottom: 1px solid #2d3748;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .panel-icon {
+      font-size: 16px;
+    }
+
+    .video-wrap {
+      position: relative;
+      background: #000;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video,
+    #mjpegImg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+      object-fit: contain;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 0.3;
+      pointer-events: none;
+      display: none;
+      object-fit: contain;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas.debug {
+      display: block;
+    }
+
+    .popup {
+      position: absolute;
+      padding: 20px 30px;
+      border-radius: 12px;
+      font-size: 28px;
+      font-weight: bold;
+      animation: slideIn 0.3s ease-out, pulse 1s infinite;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: 0;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    button.secondary {
+      background: #374151;
+    }
+
+    button.secondary:hover {
+      background: #4b5563;
+    }
+
+    .status {
+      padding: 8px 12px;
+      background: #0f1a2a;
+      font-size: 11px;
+      color: #94a3b8;
+      border-top: 1px solid #2d3748;
+    }
+
+    select {
+      background: #0f1a2a;
+      color: #e2e8f0;
+      border: 1px solid #2d3748;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      background: #000;
+      border: 1px solid #2d3748;
+      border-radius: 4px;
+      color: #e2e8f0;
+      font-size: 11px;
+      box-sizing: border-box;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .grid-3x3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .slot-card {
+      border: 1px solid #2d3748;
+      border-radius: 6px;
+      padding: 10px;
+      background: #0f1a2a;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 70px;
+    }
+
+    .slot-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .slot-icon {
+      font-size: 14px;
+    }
+
+    .slot-id {
+      font-weight: 700;
+      font-size: 13px;
+      color: #e2e8f0;
+    }
+
+    .slot-type {
+      color: #64748b;
+      font-size: 10px;
+      text-transform: lowercase;
+    }
+
+    .slot-status {
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    small {
+      color: #64748b;
+      font-size: 10px;
+    }
+
+    .esp32-section {
+      padding: 12px 16px;
+      background: #0a1220;
+      border-top: 1px solid #2d3748;
+    }
+
+    .esp32-label {
+      display: block;
+      margin-bottom: 6px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .esp32-input-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .status-indicator {
+      font-size: 10px;
+      color: #10b981;
+      padding: 8px 12px;
+    }
+
+    .last-scan-section {
+      padding: 12px;
+      border-top: 1px solid #2d3748;
+    }
+
+    .last-scan-header {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #e2e8f0;
+    }
+
+    .last-scan-content {
+      background: #0a1220;
+      border: 1px solid #2d3748;
+      border-radius: 4px;
+      padding: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      white-space: pre-wrap;
+      color: #94a3b8;
+      min-height: 40px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <h2 style="margin:0;">🚗 Parking Dashboard - Live Monitor</h2>
+      <select id="navSelect"
+        style="background:#0b1220; color:#e2e8f0; border:1px solid #1f2937; padding:6px 10px; border-radius:8px;">
+        <option value="/dashboard.html" selected>Dashboard</option>
+        <option value="/">Scanner Only</option>
+        <option value="/vehicles.html">Registered Vehicles</option>
+        <option value="/logs.html">Entry/Exit Logs</option>
+        <option value="/pricing.html">Pricing Only</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <!-- LEFT: Camera Stream -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">📷</span>
+        <h3 style="display:flex; align-items:center; gap:8px;">
+          Live Camera Feed
+          <span id="sourceIndicator" style="font-size:11px; color:#93c5fd; font-weight:400;"></span>
+        </h3>
+      </div>
+
+      <div class="video-wrap">
+        <video id="video" playsinline></video>
+        <img id="mjpegImg" style="display:none;" />
+        <canvas id="canvas"></canvas>
+
+        <!-- Entry Popup -->
+        <div id="slotPopup" class="popup"
+          style="display: none; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: 3px solid #60a5fa;">
+          <div style="text-align: center;">
+            🅿️ <span id="slotText">PARKING SLOT ASSIGNED</span>
+          </div>
+        </div>
+
+        <!-- Exit Popup -->
+        <div id="exitPopup" class="popup"
+          style="display: none; bottom: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; border: 3px solid #f87171;">
+          <div style="text-align: center;">
+            🚗 <span id="exitText">VEHICLE EXITED</span>
+          </div>
+        </div>
+
+        <!-- Scan Indicator -->
+        <div id="scanIndicator"
+          style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(34, 197, 94, 0.9); color: white; padding: 15px 25px; border-radius: 8px; font-size: 18px; font-weight: bold;">
+          ✓ QR CODE DETECTED
+        </div>
+      </div>
+
+      <div class="status" id="status">Scanning for QR code... (ESP32-CAM)</div>
+
+      <div class="esp32-section">
+        <label class="esp32-label">ESP32-CAM Stream URL</label>
+        <div class="esp32-input-group">
+          <input type="text" id="esp32Url" placeholder="Enter ESP32-CAM URL and click Test" />
+          <button id="testUrl">Test</button>
+        </div>
+        <small id="urlStatus" style="display:block; margin-top:6px;">Enter ESP32-CAM URL and click Test</small>
+      </div>
+
+      <!-- Camera controls -->
+      <div style="padding:10px 16px; display:flex; gap:8px; align-items:center; border-top:1px solid #2d3748;">
+        <button id="toggleSource">Switch to Webcam</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Parking Grid & Status -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">🅿️</span>
+        <h3>Parking Availability</h3>
+      </div>
+
+      <div class="grid-3x3" id="slotsGrid">
+        <!-- Filled by dashboard.js -->
+      </div>
+
+      <div class="status-indicator" id="slotsStatus">Live status loaded.</div>
+
+      <div class="last-scan-section">
+        <div class="last-scan-header">Last Scan Result</div>
+        <div id="lastScan" class="last-scan-content">No scans yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="/dashboard.js"></script>
+  <script>
+    const navSelect = document.getElementById('navSelect');
+    navSelect.addEventListener('change', () => { window.location.href = navSelect.value; });
+  </script>
+</body>
+
+</html>
