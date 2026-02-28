@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: smart-parking-gate-control
+    env: node
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_FILE
+        value: /opt/render/project/src/data/parking.db
+      - key: CLIENT_ORIGIN
+        value: '*' # Update this to your actual Render URL after first deployment for better security
+    disk:
+      name: parking-db-storage
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

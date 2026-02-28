@@ -6,7 +6,9 @@
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "init:db": "cd backend && npm run init:db"
+    "init:db": "cd backend && npm run init:db",
+    "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
+    "start": "cd backend && npm start"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

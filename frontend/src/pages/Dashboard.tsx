@@ -5,7 +5,7 @@ import { getDashboard } from '../lib/api';
 type Spot = { id: number; spot_name: string; vehicle_type: 'car' | 'bike' | 'truck'; status: 'available' | 'occupied'; current_vehicle: number | null };
 type LogRow = { id: number; driver_name: string; vehicle_number: string; vehicle_type: string; spot_name: string; entry_time: string; exit_time: string | null };
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
 export default function Dashboard() {
 	const [spots, setSpots] = useState<Spot[]>([]);
@@ -49,10 +49,10 @@ export default function Dashboard() {
 		return (
 			<div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
 				{typeSpots.map(s => (
-					<div key={s.id} style={{ 
-						padding: '12px', 
-						textAlign: 'center', 
-						borderRadius: '8px', 
+					<div key={s.id} style={{
+						padding: '12px',
+						textAlign: 'center',
+						borderRadius: '8px',
 						border: `1px solid ${s.status === 'occupied' ? '#dc2626' : '#10b981'}`,
 						background: s.status === 'occupied' ? '#7f1d1d' : '#064e3b'
 					}}>
@@ -106,18 +106,18 @@ export default function Dashboard() {
 			<section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 				<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 					<h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: '#e2e8f0' }}>Recent Logs</h2>
-					<input 
-						value={filter} 
-						onChange={e => setFilter(e.target.value)} 
-						placeholder="Search driver or vehicle" 
-						style={{ 
-							border: '1px solid #1f2937', 
-							borderRadius: '8px', 
-							padding: '8px 12px', 
+					<input
+						value={filter}
+						onChange={e => setFilter(e.target.value)}
+						placeholder="Search driver or vehicle"
+						style={{
+							border: '1px solid #1f2937',
+							borderRadius: '8px',
+							padding: '8px 12px',
 							fontSize: '14px',
 							background: '#111827',
 							color: '#e2e8f0'
-						}} 
+						}}
 					/>
 				</div>
 				<div style={{ overflowX: 'auto', background: '#111827', border: '1px solid #1f2937', borderRadius: '12px' }}>

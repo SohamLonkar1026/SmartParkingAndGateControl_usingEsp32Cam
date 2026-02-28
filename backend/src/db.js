@@ -3,7 +3,7 @@ import sqlite3 from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-const DEFAULT_DB_FILE = process.env.DATABASE_FILE || './data/parking.db';
+const DEFAULT_DB_FILE = process.env.DATABASE_FILE || path.join(__dirname, '../../data/parking.db');
 
 let dbPromise;
 
